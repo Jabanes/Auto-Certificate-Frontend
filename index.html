@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
-
 <head>
   <meta charset="UTF-8" />
   <title>ניהול תעודות</title>
@@ -11,19 +10,16 @@
       padding: 40px;
       direction: rtl;
     }
-
     h2 {
       text-align: center;
       margin-bottom: 10px;
     }
-
     p.instructions {
       text-align: center;
       font-size: 15px;
       color: #555;
       margin-bottom: 20px;
     }
-
     .main {
       display: flex;
       justify-content: center;
@@ -31,22 +27,19 @@
       gap: 30px;
       flex-wrap: wrap;
     }
-
     .panel {
       flex: 1 1 400px;
       max-width: 480px;
       background: white;
       border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
       padding: 20px;
       box-sizing: border-box;
     }
-
     input[type="file"] {
       display: block;
       margin: 15px auto;
     }
-
     button {
       display: block;
       width: 100%;
@@ -59,21 +52,14 @@
       font-size: 16px;
       transition: background 0.2s;
     }
-
     button:hover {
       background: #2980b9;
     }
-
-    button:disabled {
-      background: #95a5a6;
-    }
-
     .status {
       margin-top: 15px;
       text-align: center;
       font-weight: bold;
     }
-
     img#templatePreview {
       display: block;
       max-width: 100%;
@@ -83,7 +69,6 @@
     }
   </style>
 </head>
-
 <body>
   <div class="main">
     <!-- 🖼️ Template Management -->
@@ -93,15 +78,15 @@
         יש להעלות תמונה בפורמט <b>PNG</b> או <b>JPG</b> בלבד.<br>
         השדות בתמונה צריכים להיות ריקים עבור <b>שם</b>, <b>ת.ז</b> ו<b>מספר</b>.
       </p>
+
       <!-- Upload New Template -->
       <form id="templateForm">
         <input type="file" id="templateInput" accept=".png,.jpg,.jpeg" required />
         <button type="submit">העלה תבנית חדשה</button>
       </form>
+
       <!-- Template Preview -->
       <img id="templatePreview" src="" alt="תצוגה מקדימה של התבנית" />
-
-
       <div class="status" id="templateStatus"></div>
     </div>
 
@@ -110,9 +95,8 @@
       <h2>העלאת קובץ אקסל</h2>
       <p class="instructions">
         יש לבחור קובץ Excel עם סיומת <b>.xlsx</b> בלבד.<br>
-        כל שורה מייצגת משתתף אחד בתעודה.
-        <br>
-        וודא ששמות השדות בקובץ הם בדיוק: שם ,מספר ות"ז
+        כל שורה מייצגת משתתף אחד בתעודה.<br>
+        וודא ששמות השדות בקובץ הם בדיוק: שם ,מספר ות"ז.
       </p>
 
       <form id="excelForm">
@@ -133,13 +117,33 @@
     const excelInput = document.getElementById("excelInput");
     const excelStatus = document.getElementById("excelStatus");
 
-    // 🔄 Load current template preview
+    const TEMPLATE_URL = "https://n8n.srv1040889.hstgr.cloud/webhook/template";
+
+    // 🔄 Load template with no cache
     function loadTemplatePreview() {
-      // Force refresh (no cache)
-      templatePreview.src = `https://n8n.srv1040889.hstgr.cloud/webhook/template?ts=${Date.now()}`;
+      templatePreview.src = `${TEMPLATE_URL}?ts=${Date.now()}`;
     }
 
     loadTemplatePreview();
+
+    // 👀 Auto-refresh preview when template changes (check every 10s)
+    let lastModified = null;
+
+    async function checkTemplateUpdate() {
+      try {
+        const res = await fetch(TEMPLATE_URL, { method: "HEAD" });
+        const newModified = res.headers.get("Last-Modified");
+        if (newModified && newModified !== lastModified) {
+          lastModified = newModified;
+          loadTemplatePreview();
+        }
+      } catch (err) {
+        console.warn("Template check failed:", err);
+      }
+    }
+
+    // Check every 10 seconds for updates
+    setInterval(checkTemplateUpdate, 10000);
 
     // 📤 Upload new template
     templateForm.addEventListener("submit", async (e) => {
@@ -157,14 +161,18 @@
       templateStatus.textContent = "מעלה תבנית...";
 
       try {
-        const res = await fetch("https://n8n.srv1040889.hstgr.cloud/webhook/template", {
+        const res = await fetch(TEMPLATE_URL, {
           method: "POST",
           body: formData
         });
 
         if (res.ok) {
           templateStatus.textContent = "✅ התבנית עודכנה בהצלחה!";
+          // Immediate refresh after upload
           loadTemplatePreview();
+          // Update lastModified timestamp
+          const headRes = await fetch(TEMPLATE_URL, { method: "HEAD" });
+          lastModified = headRes.headers.get("Last-Modified");
         } else {
           const err = await res.json().catch(() => ({}));
           templateStatus.textContent = "❌ שגיאה בהעלאה: " + (err.detail || res.statusText);
@@ -206,5 +214,4 @@
     });
   </script>
 </body>
-
 </html>
