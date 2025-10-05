@@ -136,7 +136,7 @@
     // 🔄 Load current template preview
     function loadTemplatePreview() {
       // Force refresh (no cache)
-      templatePreview.src = `http://localhost:8000/template?ts=${Date.now()}`;
+      templatePreview.src = `https://n8n.srv1040889.hstgr.cloud/webhook/template?ts=${Date.now()}`;
     }
 
     loadTemplatePreview();
@@ -157,7 +157,7 @@
       templateStatus.textContent = "מעלה תבנית...";
 
       try {
-        const res = await fetch("http://localhost:8000/template", {
+        const res = await fetch("https://n8n.srv1040889.hstgr.cloud/webhook/template", {
           method: "POST",
           body: formData
         });
