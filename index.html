@@ -1,30 +1,52 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="he" dir="rtl">
+
 <head>
   <meta charset="UTF-8" />
-  <title>Upload Certificates Excel</title>
+  <title>ניהול תעודות</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       background: #f5f6fa;
       padding: 40px;
+      direction: rtl;
     }
-    .container {
-      max-width: 400px;
-      margin: auto;
-      padding: 20px;
-      background: white;
-      border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
+
     h2 {
       text-align: center;
+      margin-bottom: 10px;
+    }
+
+    p.instructions {
+      text-align: center;
+      font-size: 15px;
+      color: #555;
       margin-bottom: 20px;
     }
+
+    .main {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 30px;
+      flex-wrap: wrap;
+    }
+
+    .panel {
+      flex: 1 1 400px;
+      max-width: 480px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
     input[type="file"] {
       display: block;
-      margin: 20px auto;
+      margin: 15px auto;
     }
+
     button {
       display: block;
       width: 100%;
@@ -35,45 +57,137 @@
       border-radius: 5px;
       cursor: pointer;
       font-size: 16px;
+      transition: background 0.2s;
     }
+
+    button:hover {
+      background: #2980b9;
+    }
+
     button:disabled {
       background: #95a5a6;
     }
+
     .status {
-      margin-top: 20px;
+      margin-top: 15px;
       text-align: center;
       font-weight: bold;
     }
+
+    img#templatePreview {
+      display: block;
+      max-width: 100%;
+      margin: 15px auto;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
   </style>
 </head>
+
 <body>
-  <div class="container">
-    <h2>Upload Excel for Certificates</h2>
-    <form id="uploadForm">
-      <input type="file" id="fileInput" accept=".xlsx,.xls" required />
-      <button type="submit">Upload</button>
-    </form>
-    <div class="status" id="status"></div>
+  <div class="main">
+    <!-- 🖼️ Template Management -->
+    <div class="panel">
+      <h2>ניהול תבנית תעודה</h2>
+      <p class="instructions">
+        יש להעלות תמונה בפורמט <b>PNG</b> או <b>JPG</b> בלבד.<br>
+        השדות בתמונה צריכים להיות ריקים עבור <b>שם</b>, <b>ת.ז</b> ו<b>מספר</b>.
+      </p>
+      <!-- Upload New Template -->
+      <form id="templateForm">
+        <input type="file" id="templateInput" accept=".png,.jpg,.jpeg" required />
+        <button type="submit">העלה תבנית חדשה</button>
+      </form>
+      <!-- Template Preview -->
+      <img id="templatePreview" src="" alt="תצוגה מקדימה של התבנית" />
+
+
+      <div class="status" id="templateStatus"></div>
+    </div>
+
+    <!-- 📊 Excel Upload -->
+    <div class="panel">
+      <h2>העלאת קובץ אקסל</h2>
+      <p class="instructions">
+        יש לבחור קובץ Excel עם סיומת <b>.xlsx</b> בלבד.<br>
+        כל שורה מייצגת משתתף אחד בתעודה.
+        <br>
+        וודא ששמות השדות בקובץ הם בדיוק: שם ,מספר ות"ז
+      </p>
+
+      <form id="excelForm">
+        <input type="file" id="excelInput" accept=".xlsx,.xls" required />
+        <button type="submit">העלה קובץ אקסל</button>
+      </form>
+      <div class="status" id="excelStatus"></div>
+    </div>
   </div>
 
   <script>
-    const form = document.getElementById("uploadForm");
-    const fileInput = document.getElementById("fileInput");
-    const statusDiv = document.getElementById("status");
+    const templatePreview = document.getElementById("templatePreview");
+    const templateForm = document.getElementById("templateForm");
+    const templateInput = document.getElementById("templateInput");
+    const templateStatus = document.getElementById("templateStatus");
 
-    form.addEventListener("submit", async (e) => {
+    const excelForm = document.getElementById("excelForm");
+    const excelInput = document.getElementById("excelInput");
+    const excelStatus = document.getElementById("excelStatus");
+
+    // 🔄 Load current template preview
+    function loadTemplatePreview() {
+      // Force refresh (no cache)
+      templatePreview.src = `http://localhost:8000/template?ts=${Date.now()}`;
+    }
+
+    loadTemplatePreview();
+
+    // 📤 Upload new template
+    templateForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
-      const file = fileInput.files[0];
+      const file = templateInput.files[0];
       if (!file) {
-        statusDiv.textContent = "Please select a file.";
+        templateStatus.textContent = "אנא בחר קובץ.";
         return;
       }
 
       const formData = new FormData();
       formData.append("file", file);
 
-      statusDiv.textContent = "Uploading...";
+      templateStatus.textContent = "מעלה תבנית...";
+
+      try {
+        const res = await fetch("http://localhost:8000/template", {
+          method: "POST",
+          body: formData
+        });
+
+        if (res.ok) {
+          templateStatus.textContent = "✅ התבנית עודכנה בהצלחה!";
+          loadTemplatePreview();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          templateStatus.textContent = "❌ שגיאה בהעלאה: " + (err.detail || res.statusText);
+        }
+      } catch (err) {
+        templateStatus.textContent = "❌ שגיאה: " + err.message;
+      }
+    });
+
+    // 📊 Upload Excel
+    excelForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const file = excelInput.files[0];
+      if (!file) {
+        excelStatus.textContent = "אנא בחר קובץ אקסל.";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      excelStatus.textContent = "מעלה קובץ...";
 
       try {
         const res = await fetch("https://n8n.srv1040889.hstgr.cloud/webhook/upload-cert-excel", {
@@ -82,16 +196,15 @@
         });
 
         if (res.ok) {
-          const data = await res.json().catch(() => ({}));
-          statusDiv.textContent = "✅ Workflow triggered successfully!";
-          console.log("Response:", data);
+          excelStatus.textContent = "✅ הקובץ נשלח בהצלחה לשרת!";
         } else {
-          statusDiv.textContent = "❌ Upload failed. Check server logs.";
+          excelStatus.textContent = "❌ העלאה נכשלה. בדוק את השרת.";
         }
       } catch (err) {
-        statusDiv.textContent = "❌ Error: " + err.message;
+        excelStatus.textContent = "❌ שגיאה: " + err.message;
       }
     });
   </script>
 </body>
+
 </html>
