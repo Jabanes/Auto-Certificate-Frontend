@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
+
 <head>
   <meta charset="UTF-8" />
   <title>ניהול תעודות</title>
@@ -10,16 +11,19 @@
       padding: 40px;
       direction: rtl;
     }
+
     h2 {
       text-align: center;
       margin-bottom: 10px;
     }
+
     p.instructions {
       text-align: center;
       font-size: 15px;
       color: #555;
       margin-bottom: 20px;
     }
+
     .main {
       display: flex;
       justify-content: center;
@@ -27,19 +31,22 @@
       gap: 30px;
       flex-wrap: wrap;
     }
+
     .panel {
       flex: 1 1 400px;
       max-width: 480px;
       background: white;
       border-radius: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
       padding: 20px;
       box-sizing: border-box;
     }
+
     input[type="file"] {
       display: block;
       margin: 15px auto;
     }
+
     button {
       display: block;
       width: 100%;
@@ -52,14 +59,17 @@
       font-size: 16px;
       transition: background 0.2s;
     }
+
     button:hover {
       background: #2980b9;
     }
+
     .status {
       margin-top: 15px;
       text-align: center;
       font-weight: bold;
     }
+
     img#templatePreview {
       display: block;
       max-width: 100%;
@@ -69,6 +79,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="main">
     <!-- 🖼️ Template Management -->
@@ -90,20 +101,50 @@
       <div class="status" id="templateStatus"></div>
     </div>
 
-    <!-- 📊 Excel Upload -->
-    <div class="panel">
-      <h2>העלאת קובץ אקסל</h2>
-      <p class="instructions">
-        יש לבחור קובץ Excel עם סיומת <b>.xlsx</b> בלבד.<br>
-        כל שורה מייצגת משתתף אחד בתעודה.<br>
-        וודא ששמות השדות בקובץ הם בדיוק: שם ,מספר ות"ז.
-      </p>
+    <div style="display: flex; flex-direction: column; gap: 30px;">
+      <!-- 📊 Excel Upload -->
+      <div class="panel">
+        <h2>העלאת קובץ אקסל</h2>
+        <p class="instructions">
+          יש לבחור קובץ Excel עם סיומת <b>.xlsx</b> בלבד.<br>
+          כל שורה מייצגת משתתף אחד בתעודה.<br>
+          וודא ששמות השדות בקובץ הם בדיוק: שם ,מספר ות"ז.
+        </p>
 
-      <form id="excelForm">
-        <input type="file" id="excelInput" accept=".xlsx,.xls" required />
-        <button type="submit">העלה קובץ אקסל</button>
-      </form>
-      <div class="status" id="excelStatus"></div>
+        <form id="excelForm">
+          <input type="file" id="excelInput" accept=".xlsx,.xls" required />
+          <button type="submit">העלה קובץ אקסל</button>
+        </form>
+        <div class="status" id="excelStatus"></div>
+      </div>
+
+      <!-- 📬 Distribute Certificates -->
+      <div class="panel">
+        <h2>הפצת תעודות</h2>
+        <p class="instructions">
+          העלה את <b>קובץ התעודות (ZIP)</b> המכיל את כל קבצי ה־PDF של התלמידים.<br>
+          ודא שכל שם קובץ כולל את מספר ה־ת.ז של התלמיד (לדוגמה: <b>312136351.pdf</b>).<br><br>
+          לאחר מכן העלה <b>קובץ Excel</b> עם עמודות <b>ת.ז</b> ו־<b>אימייל</b> (או ID / Email באנגלית).<br>
+          לאחר ההעלאה לחץ על <b>הפץ תעודות</b> כדי לשלוח לכל תלמיד את התעודה שלו אוטומטית.
+        </p>
+
+        <form id="distributeForm">
+          <label><b>קובץ ZIP של תעודות:</b></label>
+          <input type="file" id="zipInput" accept=".zip" required />
+
+          <label><b>קובץ Excel של תלמידים:</b></label>
+          <input type="file" id="excelDistInput" accept=".xlsx,.xls" required />
+
+          <button type="submit">📤 הפץ תעודות</button>
+        </form>
+
+        <div class="status" id="distributeStatus"></div>
+
+        <div id="previewContainer" style="display:none; margin-top:20px;">
+          <h4>תצוגה מקדימה של הנתונים שחזרו:</h4>
+          <pre id="previewOutput"></pre>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -212,6 +253,56 @@
         excelStatus.textContent = "❌ שגיאה: " + err.message;
       }
     });
+
+    const N8N_URL = "https://n8n.srv1040889.hstgr.cloud/webhook/eb1ed9ce-21b3-42f9-b620-a8b6bcf4e3be";
+    const distributeForm = document.getElementById("distributeForm");
+    const zipInput = document.getElementById("zipInput");
+    const excelDistInput = document.getElementById("excelDistInput");
+    const distributeStatus = document.getElementById("distributeStatus");
+    const previewContainer = document.getElementById("previewContainer");
+    const previewOutput = document.getElementById("previewOutput");
+
+    // 📧 Distribute certificates workflow
+    distributeForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const zipFile = zipInput.files[0];
+      const excelFile = excelDistInput.files[0];
+      if (!zipFile || !excelFile) {
+        distributeStatus.textContent = "אנא בחר גם קובץ ZIP וגם Excel.";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("zip_file", zipFile);
+      formData.append("excel", excelFile);
+
+      distributeStatus.textContent = "שולח נתונים... אנא המתן.";
+      previewContainer.style.display = "none";
+
+      try {
+        const res = await fetch(N8N_URL, { method: "POST", body: formData });
+        const text = await res.text();
+
+        if (res.ok) {
+          distributeStatus.textContent = "✅ הבקשה נשלחה בהצלחה!";
+          previewOutput.textContent = text;
+          previewContainer.style.display = "block";
+        } else {
+          distributeStatus.textContent = "❌ שגיאה בהפצה: " + res.statusText;
+          previewOutput.textContent = text;
+          previewContainer.style.display = "block";
+        }
+      } catch (err) {
+        distributeStatus.textContent = "❌ שגיאה: " + err.message;
+      }
+    });
   </script>
+
 </body>
+
+</html>});
+  </script>
+
+</body>
+
 </html>
