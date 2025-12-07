@@ -3,10 +3,10 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>ניהול תעודות</title>
+  <title>ניהול תעודות COB</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Assistant', Arial, sans-serif;
       background: #f5f6fa;
       padding: 40px;
       direction: rtl;
@@ -15,6 +15,7 @@
     h2 {
       text-align: center;
       margin-bottom: 10px;
+      color: #2c3e50;
     }
 
     p.instructions {
@@ -22,6 +23,7 @@
       font-size: 15px;
       color: #555;
       margin-bottom: 20px;
+      line-height: 1.6;
     }
 
     .main {
@@ -45,12 +47,23 @@
     input[type="file"] {
       display: block;
       margin: 15px auto;
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
+    label {
+      display: block;
+      margin: 10px 0 5px 0;
+      font-weight: bold;
+      color: #333;
     }
 
     button {
       display: block;
       width: 100%;
-      padding: 10px;
+      padding: 12px;
       background: #3498db;
       color: white;
       border: none;
@@ -58,16 +71,39 @@
       cursor: pointer;
       font-size: 16px;
       transition: background 0.2s;
+      margin-top: 10px;
     }
 
     button:hover {
       background: #2980b9;
     }
 
+    button:disabled {
+      background: #95a5a6;
+      cursor: not-allowed;
+    }
+
     .status {
       margin-top: 15px;
       text-align: center;
       font-weight: bold;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .status.info {
+      background: #d1ecf1;
+      color: #0c5460;
     }
 
     img#templatePreview {
@@ -77,10 +113,34 @@
       border: 1px solid #ccc;
       border-radius: 8px;
     }
+
+    #previewContainer {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 5px;
+      border: 1px solid #dee2e6;
+    }
+
+    #previewOutput {
+      background: white;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
   </style>
 </head>
 
 <body>
+  <!-- API Status Indicator -->
+  <div id="api-status" style="padding:10px;color:#3498db;font-weight:bold;text-align:center;background:#e8f4f8;border-radius:5px;margin-bottom:20px;">
+    Checking API connection...
+  </div>
+
   <div class="main">
     <!-- 🖼️ Template Management -->
     <div class="panel">
@@ -102,18 +162,19 @@
     </div>
 
     <div style="display: flex; flex-direction: column; gap: 30px;">
-      <!-- 📊 Excel Upload -->
+      <!-- 📊 Excel Upload & Generate -->
       <div class="panel">
-        <h2>העלאת קובץ אקסל</h2>
+        <h2>יצירת תעודות מקובץ Excel</h2>
         <p class="instructions">
-          יש לבחור קובץ Excel עם סיומת <b>.xlsx</b> בלבד.<br>
+          יש לבחור קובץ Excel עם סיומת <b>.xlsx</b> או <b>.xls</b>.<br>
           כל שורה מייצגת משתתף אחד בתעודה.<br>
-          וודא ששמות השדות בקובץ הם בדיוק: שם ,מספר ות"ז.
+          עמודות נדרשות: <b>שם</b>, <b>ת.ז</b> (או ID), <b>מספר תעודה</b> (אופציונלי).<br><br>
+          <b>התעודות יישלחו למייל המנהל ויורדו כקובץ ZIP.</b>
         </p>
 
         <form id="excelForm">
           <input type="file" id="excelInput" accept=".xlsx,.xls" required />
-          <button type="submit">העלה קובץ אקסל</button>
+          <button type="submit">יצירת תעודות ושליחה</button>
         </form>
         <div class="status" id="excelStatus"></div>
       </div>
@@ -124,7 +185,7 @@
         <p class="instructions">
           העלה את <b>קובץ התעודות (ZIP)</b> המכיל את כל קבצי ה־PDF של התלמידים.<br>
           ודא שכל שם קובץ כולל את מספר ה־ת.ז של התלמיד (לדוגמה: <b>312136351.pdf</b>).<br><br>
-          לאחר מכן העלה <b>קובץ Excel</b> עם עמודות <b>ת.ז</b> ו־<b>אימייל</b> (או ID / Email באנגלית).<br>
+          לאחר מכן העלה <b>קובץ Excel</b> עם עמודות <b>ת.ז</b> (או ID) ו־<b>אימייל</b> (או Email/מייל).<br>
           לאחר ההעלאה לחץ על <b>הפץ תעודות</b> כדי לשלוח לכל תלמיד את התעודה שלו אוטומטית.
         </p>
 
@@ -141,106 +202,242 @@
         <div class="status" id="distributeStatus"></div>
 
         <div id="previewContainer" style="display:none; margin-top:20px;">
-          <h4>תצוגה מקדימה של הנתונים שחזרו:</h4>
+          <h4>תוצאות הפצה:</h4>
           <pre id="previewOutput"></pre>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- Load configuration FIRST -->
+  <script src="config.js"></script>
+
   <script>
+    // ============================================
+    // API Configuration (from config.js)
+    // ============================================
+    function getApiBaseUrl() {
+      // Use API_BASE_URL from config.js, fallback to localhost
+      if (typeof API_BASE_URL !== 'undefined' && API_BASE_URL) {
+        return API_BASE_URL;
+      }
+      // Fallback based on environment
+      if (typeof ENVIRONMENT !== 'undefined' && ENVIRONMENT === 'production') {
+        return 'https://api.srv1040889.hstgr.cloud';
+      }
+      return 'http://localhost:8000';
+    }
+
+    // Log configuration for debugging
+    console.log('Frontend Configuration:', {
+      apiUrl: getApiBaseUrl(),
+      environment: typeof ENVIRONMENT !== 'undefined' ? ENVIRONMENT : 'unknown'
+    });
+
+    // ============================================
+    // API Connectivity Check
+    // ============================================
+    async function testBackendConnection() {
+      const statusElement = document.getElementById("api-status");
+      if (!statusElement) return;
+
+      try {
+        const apiUrl = getApiBaseUrl();
+        const res = await fetch(`${apiUrl}/health`);
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+
+        const data = await res.json();
+        console.log("✅ Backend OK:", data);
+        
+        statusElement.innerText = `Backend Connected ✔️ (${data.version || 'v2.0.0'})`;
+        statusElement.style.color = '#27ae60';
+        statusElement.style.background = '#d4edda';
+        
+      } catch (err) {
+        console.error("❌ Backend connection failed:", err);
+        statusElement.innerText = `Backend Error ❌ - ${err.message}`;
+        statusElement.style.color = '#c0392b';
+        statusElement.style.background = '#f8d7da';
+      }
+    }
+
+    // Test connection on page load
+    testBackendConnection();
+
+    // ============================================
+    // Testing Flow Helper (for debugging - does NOT auto-run)
+    // ============================================
+    async function simulateFlow() {
+      console.log("🧪 Testing API endpoints...");
+      
+      try {
+        const apiUrl = getApiBaseUrl();
+        
+        console.log("1️⃣ Testing /health...");
+        const healthRes = await fetch(`${apiUrl}/health`);
+        const healthData = await healthRes.json();
+        console.log("✅ /health:", healthData);
+
+        console.log("2️⃣ Testing /template...");
+        const templateRes = await fetch(`${apiUrl}/template`);
+        if (templateRes.ok) {
+          console.log("✅ /template: OK (image file)");
+        } else {
+          console.warn("⚠️ /template:", templateRes.status, templateRes.statusText);
+        }
+
+        console.log("3️⃣ Testing /generate-certificates-excel-dev...");
+        console.log("ℹ️ This endpoint requires POST with Excel file - skipping automatic test");
+        
+        console.log("✅ All basic endpoints tested");
+      } catch (err) {
+        console.error("❌ Flow simulation error:", err);
+        throw err;
+      }
+    }
+
+    // Expose simulateFlow to window for manual testing (e.g., in console: simulateFlow())
+    window.simulateFlow = simulateFlow;
+
+    // ============================================
+    // Template Management
+    // ============================================
     const templatePreview = document.getElementById("templatePreview");
     const templateForm = document.getElementById("templateForm");
     const templateInput = document.getElementById("templateInput");
     const templateStatus = document.getElementById("templateStatus");
 
-    const excelForm = document.getElementById("excelForm");
-    const excelInput = document.getElementById("excelInput");
-    const excelStatus = document.getElementById("excelStatus");
-
-    const TEMPLATE_URL = "https://api.srv1040889.hstgr.cloud/template";
-
-    // 🔄 Load template with no cache
     function loadTemplatePreview() {
-      templatePreview.src = `${TEMPLATE_URL}?ts=${Date.now()}`;
+      const apiUrl = getApiBaseUrl();
+      templatePreview.src = `${apiUrl}/template?ts=${Date.now()}`;
     }
 
     loadTemplatePreview();
 
-    // 👀 Auto-refresh preview when template changes (check every 10s)
-    let lastModified = null;
+    // Auto-refresh preview every 10 seconds
+    setInterval(() => {
+      loadTemplatePreview();
+    }, 10000);
 
-
-
-    // 📤 Upload new template
     templateForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
       const file = templateInput.files[0];
       if (!file) {
-        templateStatus.textContent = "אנא בחר קובץ.";
+        setStatus(templateStatus, "אנא בחר קובץ.", "error");
         return;
       }
 
       const formData = new FormData();
       formData.append("file", file);
 
-      templateStatus.textContent = "מעלה תבנית...";
+      setStatus(templateStatus, "מעלה תבנית...", "info");
 
       try {
-        const res = await fetch(TEMPLATE_URL, {
+        const apiUrl = getApiBaseUrl();
+        const res = await fetch(`${apiUrl}/template`, {
           method: "POST",
           body: formData
         });
 
         if (res.ok) {
-          templateStatus.textContent = "✅ התבנית עודכנה בהצלחה!";
-          // Immediate refresh after upload
+          setStatus(templateStatus, "✅ התבנית עודכנה בהצלחה!", "success");
           loadTemplatePreview();
-          // Update lastModified timestamp
-          lastModified = Date.now(); // Just reset timestamp, no need to read headers
-
+          // Re-test backend connection after successful upload
+          testBackendConnection();
         } else {
-          const err = await res.json().catch(() => ({}));
-          templateStatus.textContent = "❌ שגיאה בהעלאה: " + (err.detail || res.statusText);
+          const errorData = await res.json().catch(() => ({}));
+          const errorMessage = errorData.detail || errorData.message || res.statusText || 'Unknown error';
+          console.error("API Error:", errorData);
+          setStatus(templateStatus, "❌ שגיאה בהעלאה: " + errorMessage, "error");
+          alert("Backend Error: " + errorMessage);
         }
       } catch (err) {
-        templateStatus.textContent = "❌ שגיאה: " + err.message;
+        console.error("Network Error:", err);
+        const errorMessage = err.message || 'Network error - check if backend is running';
+        setStatus(templateStatus, "❌ שגיאה: " + errorMessage, "error");
+        alert("Backend Error: " + errorMessage);
       }
     });
 
-    // 📊 Upload Excel
+    // ============================================
+    // Excel Upload & Generate Certificates
+    // ============================================
+    const excelForm = document.getElementById("excelForm");
+    const excelInput = document.getElementById("excelInput");
+    const excelStatus = document.getElementById("excelStatus");
+
     excelForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
       const file = excelInput.files[0];
       if (!file) {
-        excelStatus.textContent = "אנא בחר קובץ אקסל.";
+        setStatus(excelStatus, "אנא בחר קובץ אקסל.", "error");
         return;
       }
 
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("excel", file);
+      formData.append("zip_name", "certificates.zip");
 
-      excelStatus.textContent = "מעלה קובץ...";
+      setStatus(excelStatus, "מעבד קובץ...", "info");
+      const submitButton = excelForm.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
 
       try {
-        const res = await fetch("https://n8n.srv1040889.hstgr.cloud/webhook/upload-cert-excel", {
+        const apiUrl = getApiBaseUrl();
+        const res = await fetch(`${apiUrl}/generate-certificates-excel`, {
           method: "POST",
           body: formData
         });
 
         if (res.ok) {
-          excelStatus.textContent = "✅ הקובץ נשלח בהצלחה לשרת!";
+          // Check if response is ZIP file or JSON
+          const contentType = res.headers.get("content-type");
+          
+          if (contentType && contentType.includes("application/zip")) {
+            // Download ZIP file
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'certificates.zip';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            setStatus(excelStatus, "✅ התעודות נוצרו ונשלחו למייל המנהל! הקובץ הורד.", "success");
+            // Re-test backend connection after successful operation
+            testBackendConnection();
+          } else {
+            // JSON response
+            const data = await res.json();
+            setStatus(excelStatus, `✅ ${data.message || 'התעודות נוצרו בהצלחה!'}`, "success");
+          }
         } else {
-          excelStatus.textContent = "❌ העלאה נכשלה. בדוק את השרת.";
+          const errorData = await res.json().catch(() => ({}));
+          const errorMessage = errorData.detail || errorData.message || res.statusText || 'Unknown error';
+          console.error("API Error:", errorData);
+          setStatus(excelStatus, "❌ שגיאה: " + errorMessage, "error");
+          alert("Backend Error: " + errorMessage);
         }
       } catch (err) {
-        excelStatus.textContent = "❌ שגיאה: " + err.message;
+        console.error("Network Error:", err);
+        const errorMessage = err.message || 'Network error - check if backend is running';
+        setStatus(excelStatus, "❌ שגיאה: " + errorMessage, "error");
+        alert("Backend Error: " + errorMessage);
+      } finally {
+        submitButton.disabled = false;
       }
     });
 
-    const N8N_URL = "https://n8n.srv1040889.hstgr.cloud/webhook/eb1ed9ce-21b3-42f9-b620-a8b6bcf4e3be";
+    // ============================================
+    // Distribute Certificates
+    // ============================================
     const distributeForm = document.getElementById("distributeForm");
     const zipInput = document.getElementById("zipInput");
     const excelDistInput = document.getElementById("excelDistInput");
@@ -248,13 +445,13 @@
     const previewContainer = document.getElementById("previewContainer");
     const previewOutput = document.getElementById("previewOutput");
 
-    // 📧 Distribute certificates workflow
     distributeForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const zipFile = zipInput.files[0];
       const excelFile = excelDistInput.files[0];
+      
       if (!zipFile || !excelFile) {
-        distributeStatus.textContent = "אנא בחר גם קובץ ZIP וגם Excel.";
+        setStatus(distributeStatus, "אנא בחר גם קובץ ZIP וגם Excel.", "error");
         return;
       }
 
@@ -262,26 +459,87 @@
       formData.append("zip_file", zipFile);
       formData.append("excel", excelFile);
 
-      distributeStatus.textContent = "שולח נתונים... אנא המתן.";
+      setStatus(distributeStatus, "מעבד ומפיץ תעודות... אנא המתן.", "info");
       previewContainer.style.display = "none";
+      const submitButton = distributeForm.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
 
       try {
-        const res = await fetch(N8N_URL, { method: "POST", body: formData });
-        const text = await res.text();
+        const apiUrl = getApiBaseUrl();
+        const res = await fetch(`${apiUrl}/distribute-certificates`, {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await res.json();
 
         if (res.ok) {
-          distributeStatus.textContent = "✅ הבקשה נשלחה בהצלחה!";
-          previewOutput.textContent = text;
+          // Format response for display
+          const formatted = formatDistributionResponse(data);
+          previewOutput.textContent = formatted;
           previewContainer.style.display = "block";
+          
+          const successMsg = `✅ הפצה הושלמה! נשלחו ${data.emails_sent} תעודות, ${data.emails_failed} נכשלו.`;
+          setStatus(distributeStatus, successMsg, "success");
+          // Re-test backend connection after successful operation
+          testBackendConnection();
         } else {
-          distributeStatus.textContent = "❌ שגיאה בהפצה: " + res.statusText;
-          previewOutput.textContent = text;
+          previewOutput.textContent = JSON.stringify(data, null, 2);
           previewContainer.style.display = "block";
+          const errorMessage = data.detail || data.message || res.statusText || 'Unknown error';
+          console.error("API Error:", data);
+          setStatus(distributeStatus, "❌ שגיאה בהפצה: " + errorMessage, "error");
+          alert("Backend Error: " + errorMessage);
         }
       } catch (err) {
-        distributeStatus.textContent = "❌ שגיאה: " + err.message;
+        console.error("Network Error:", err);
+        const errorMessage = err.message || 'Network error - check if backend is running';
+        setStatus(distributeStatus, "❌ שגיאה: " + errorMessage, "error");
+        alert("Backend Error: " + errorMessage);
+      } finally {
+        submitButton.disabled = false;
       }
     });
+
+    // ============================================
+    // Helper Functions
+    // ============================================
+    function setStatus(element, message, type) {
+      element.textContent = message;
+      element.className = "status " + (type || "info");
+    }
+
+    function formatDistributionResponse(data) {
+      let output = `סיכום הפצה:\n`;
+      output += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      output += `סה"כ תלמידים: ${data.total_students}\n`;
+      output += `תעודות שנשלחו: ${data.emails_sent}\n`;
+      output += `תעודות שנכשלו: ${data.emails_failed}\n`;
+      output += `תעודות חסרות: ${data.missing_certificates || 0}\n\n`;
+      
+      if (data.students && data.students.length > 0) {
+        output += `פרטי תלמידים:\n`;
+        output += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        
+        const statusLabels = {
+          'sent': '✅ נשלח',
+          'ready_to_send': '⏳ מוכן לשליחה',
+          'missing_email': '❌ חסר אימייל',
+          'missing_certificate': '❌ תעודה חסרה',
+          'invalid_id': '❌ ת.ז לא תקין',
+          'encoding_error': '❌ שגיאת קידוד',
+          'processing_error': '❌ שגיאת עיבוד'
+        };
+        
+        data.students.forEach((student, idx) => {
+          output += `\n${idx + 1}. ת.ז: ${student.id || 'לא זמין'}\n`;
+          output += `   אימייל: ${student.email || 'לא זמין'}\n`;
+          output += `   סטטוס: ${statusLabels[student.status] || student.status}\n`;
+        });
+      }
+      
+      return output;
+    }
   </script>
 
 </body>
