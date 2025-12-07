@@ -172,12 +172,13 @@
 
     async function checkTemplateUpdate() {
       try {
-        const res = await fetch(TEMPLATE_URL, { method: "HEAD" });
-        const newModified = res.headers.get("Last-Modified");
-        if (newModified && newModified !== lastModified) {
-          lastModified = newModified;
-          loadTemplatePreview();
-        }
+        // Fetch with GET so FastAPI won't return 405 and it won't interfere
+        await fetch(TEMPLATE_URL + "?ts=" + Date.now(), {
+          method: "GET",
+          cache: "no-cache"
+        });
+
+        loadTemplatePreview(); // Always refresh safely
       } catch (err) {
         console.warn("Template check failed:", err);
       }
@@ -212,8 +213,8 @@
           // Immediate refresh after upload
           loadTemplatePreview();
           // Update lastModified timestamp
-          const headRes = await fetch(TEMPLATE_URL, { method: "HEAD" });
-          lastModified = headRes.headers.get("Last-Modified");
+          lastModified = Date.now(); // Just reset timestamp, no need to read headers
+
         } else {
           const err = await res.json().catch(() => ({}));
           templateStatus.textContent = "❌ שגיאה בהעלאה: " + (err.detail || res.statusText);
@@ -296,11 +297,6 @@
         distributeStatus.textContent = "❌ שגיאה: " + err.message;
       }
     });
-  </script>
-
-</body>
-
-</html>});
   </script>
 
 </body>
