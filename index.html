@@ -170,22 +170,7 @@
     // 👀 Auto-refresh preview when template changes (check every 10s)
     let lastModified = null;
 
-    async function checkTemplateUpdate() {
-      try {
-        // Fetch with GET so FastAPI won't return 405 and it won't interfere
-        await fetch(TEMPLATE_URL + "?ts=" + Date.now(), {
-          method: "GET",
-          cache: "no-cache"
-        });
 
-        loadTemplatePreview(); // Always refresh safely
-      } catch (err) {
-        console.warn("Template check failed:", err);
-      }
-    }
-
-    // Check every 10 seconds for updates
-    setInterval(checkTemplateUpdate, 10000);
 
     // 📤 Upload new template
     templateForm.addEventListener("submit", async (e) => {
