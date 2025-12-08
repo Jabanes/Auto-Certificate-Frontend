@@ -1,22 +1,65 @@
 // ============================================
 // Frontend Environment Configuration
 // ============================================
-// This file configures the frontend for development or production
+// SSOT: Frontend URL is defined in BACKEND environment variable FRONTEND_URL
+// Frontend gets it from backend /health endpoint after connecting
+// This file only defines API_BASE_URL - FRONTEND_URL comes from backend
 
 // ============================================
-// DEVELOPMENT CONFIGURATION
+// AUTO-DETECT ENVIRONMENT
 // ============================================
-const API_BASE_URL = 'http://31.97.193.47';
-const FRONTEND_URL = 'http://localhost:5501'; // Live Server port (update if different)
-const ENVIRONMENT = 'development';
+const isProduction = window.location.hostname === 'jabanes.github.io' || 
+                     window.location.hostname.includes('github.io') ||
+                     window.location.protocol === 'https:';
 
 // ============================================
-// PRODUCTION CONFIGURATION
+// API BASE URL CONFIGURATION
 // ============================================
-// Uncomment and update these for production:
-// const API_BASE_URL = 'https://<SERVER_IP_OR_DOMAIN>';
-// const FRONTEND_URL = 'https://jabanes.github.io';
-// const ENVIRONMENT = 'production';
+// Development: Direct connection to backend
+const DEV_API_BASE_URL = 'http://localhost:8000';
+
+// Production: HTTPS backend URL (update with your production backend)
+// IMPORTANT: Must use HTTPS for production (mixed content security)
+const PROD_API_BASE_URL = 'https://match-sperm-cape-subdivision.trycloudflare.com';
+
+// Select API URL based on environment
+const API_BASE_URL = isProduction ? PROD_API_BASE_URL : DEV_API_BASE_URL;
+
+// ============================================
+// FRONTEND URL - GET FROM BACKEND (SSOT)
+// ============================================
+// FRONTEND_URL is the Single Source of Truth (SSOT) defined in backend
+// Frontend will fetch it from backend /health endpoint
+let FRONTEND_URL = null; // Will be set from backend
+let FRONTEND_URL_LOADED = false;
+
+// ============================================
+// Load FRONTEND_URL from Backend (SSOT)
+// ============================================
+async function loadFrontendUrlFromBackend() {
+  if (FRONTEND_URL_LOADED) return FRONTEND_URL;
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.frontend_url) {
+        FRONTEND_URL = data.frontend_url;
+        FRONTEND_URL_LOADED = true;
+        console.log('✅ Loaded FRONTEND_URL from backend (SSOT):', FRONTEND_URL);
+        return FRONTEND_URL;
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️ Could not load FRONTEND_URL from backend:', err.message);
+    // Fallback to current location
+    FRONTEND_URL = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/');
+    console.log('⚠️ Using fallback FRONTEND_URL:', FRONTEND_URL);
+  }
+  
+  FRONTEND_URL_LOADED = true;
+  return FRONTEND_URL;
+}
 
 // ============================================
 // Configuration Validation
@@ -30,54 +73,33 @@ const ENVIRONMENT = 'development';
 
   // Validate URL format
   try {
-    new URL(API_BASE_URL);
+    const apiUrl = new URL(API_BASE_URL);
+    // In production, API must use HTTPS
+    if (isProduction && apiUrl.protocol !== 'https:') {
+      console.error('❌ Production API_BASE_URL must use HTTPS:', API_BASE_URL);
+      console.error('⚠️ Mixed Content Error: HTTPS frontend cannot connect to HTTP backend');
+      throw new Error('Production API_BASE_URL must use HTTPS protocol');
+    }
   } catch (e) {
+    if (e.message.includes('HTTPS')) {
+      throw e;
+    }
     console.error('❌ Invalid API_BASE_URL format:', API_BASE_URL);
-    throw new Error('API_BASE_URL must be a valid URL (e.g., http://localhost:8000 or https://api.example.com)');
-  }
-
-  // Validate FRONTEND_URL
-  if (!FRONTEND_URL || typeof FRONTEND_URL !== 'string') {
-    console.error('❌ Invalid FRONTEND_URL:', FRONTEND_URL);
-    throw new Error('FRONTEND_URL must be a valid string');
-  }
-
-  // Validate URL format
-  try {
-    new URL(FRONTEND_URL);
-  } catch (e) {
-    console.error('❌ Invalid FRONTEND_URL format:', FRONTEND_URL);
-    throw new Error('FRONTEND_URL must be a valid URL');
-  }
-
-  // Validate ENVIRONMENT
-  if (ENVIRONMENT !== 'development' && ENVIRONMENT !== 'production') {
-    console.error('❌ Invalid ENVIRONMENT:', ENVIRONMENT);
-    throw new Error('ENVIRONMENT must be either "development" or "production"');
-  }
-
-  // Environment-specific validation
-  if (ENVIRONMENT === 'development') {
-    if (!API_BASE_URL.includes('localhost') && !API_BASE_URL.includes('127.0.0.1')) {
-      console.warn('⚠️ Development environment but API_BASE_URL is not localhost:', API_BASE_URL);
-    }
-    if (!FRONTEND_URL.includes('localhost') && !FRONTEND_URL.includes('127.0.0.1')) {
-      console.warn('⚠️ Development environment but FRONTEND_URL is not localhost:', FRONTEND_URL);
-    }
-  }
-
-  if (ENVIRONMENT === 'production') {
-    if (!API_BASE_URL.startsWith('https://')) {
-      console.warn('⚠️ Production environment but API_BASE_URL is not HTTPS:', API_BASE_URL);
-    }
-    if (!FRONTEND_URL.startsWith('https://')) {
-      console.warn('⚠️ Production environment but FRONTEND_URL is not HTTPS:', FRONTEND_URL);
-    }
+    throw new Error('API_BASE_URL must be a valid URL');
   }
 
   console.log('✅ Configuration validated:', {
     API_BASE_URL,
-    FRONTEND_URL,
-    ENVIRONMENT
+    ENVIRONMENT: isProduction ? 'production' : 'development',
+    isProduction,
+    hostname: window.location.hostname,
+    note: 'FRONTEND_URL will be loaded from backend (SSOT)'
   });
 })();
+
+// ============================================
+// Export for use in other scripts
+// ============================================
+// Make API_BASE_URL available globally
+window.API_BASE_URL = API_BASE_URL;
+window.getFrontendUrl = loadFrontendUrlFromBackend;

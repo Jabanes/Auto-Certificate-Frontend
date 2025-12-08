@@ -231,11 +231,12 @@
     // Log configuration for debugging
     console.log('Frontend Configuration:', {
       apiUrl: getApiBaseUrl(),
+      frontendUrl: typeof FRONTEND_URL !== 'undefined' ? FRONTEND_URL : 'unknown',
       environment: typeof ENVIRONMENT !== 'undefined' ? ENVIRONMENT : 'unknown'
     });
 
     // ============================================
-    // API Connectivity Check
+    // API Connectivity Check & Load FRONTEND_URL (SSOT)
     // ============================================
     async function testBackendConnection() {
       const statusElement = document.getElementById("api-status");
@@ -252,10 +253,25 @@
         const data = await res.json();
         console.log("✅ Backend OK:", data);
         
+        // Load FRONTEND_URL from backend (SSOT)
+        if (typeof window.getFrontendUrl === 'function') {
+          const frontendUrl = await window.getFrontendUrl();
+          console.log("✅ FRONTEND_URL loaded from backend (SSOT):", frontendUrl);
+        }
+        
         statusElement.innerText = `Backend Connected ✔️ (${data.version || 'v2.0.0'})`;
         statusElement.style.color = '#27ae60';
         statusElement.style.background = '#d4edda';
         
+        // Show frontend URL from backend (SSOT)
+        if (data.frontend_url && data.frontend_url !== 'not configured') {
+          statusElement.innerText += ` | Frontend (SSOT): ${data.frontend_url}`;
+        }
+        
+        // Show CORS origins for debugging
+        if (data.cors_origins && Array.isArray(data.cors_origins)) {
+          console.log("✅ CORS Origins (from SSOT):", data.cors_origins);
+        }
       } catch (err) {
         console.error("❌ Backend connection failed:", err);
         statusElement.innerText = `Backend Error ❌ - ${err.message}`;
@@ -264,7 +280,7 @@
       }
     }
 
-    // Test connection on page load
+    // Test connection on page load and load FRONTEND_URL (SSOT)
     testBackendConnection();
 
     // ============================================

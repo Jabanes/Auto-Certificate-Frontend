@@ -80,3 +80,5 @@ Make sure `config.js` exists in the same directory as `index.html` and contains:
 const API_BASE_URL = 'http://localhost:8000';
 ```
 
+
+
