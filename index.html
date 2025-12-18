@@ -136,11 +136,6 @@
 </head>
 
 <body>
-  <!-- API Status Indicator -->
-  <div id="api-status" style="padding:10px;color:#3498db;font-weight:bold;text-align:center;background:#e8f4f8;border-radius:5px;margin-bottom:20px;">
-    Checking API connection...
-  </div>
-
   <div class="main">
     <!-- 🖼️ Template Management -->
     <div class="panel">
@@ -239,9 +234,6 @@
     // API Connectivity Check & Load FRONTEND_URL (SSOT)
     // ============================================
     async function testBackendConnection() {
-      const statusElement = document.getElementById("api-status");
-      if (!statusElement) return;
-
       try {
         const apiUrl = getApiBaseUrl();
         const res = await fetch(`${apiUrl}/health`);
@@ -259,24 +251,12 @@
           console.log("✅ FRONTEND_URL loaded from backend (SSOT):", frontendUrl);
         }
         
-        statusElement.innerText = `Backend Connected ✔️ (${data.version || 'v2.0.0'})`;
-        statusElement.style.color = '#27ae60';
-        statusElement.style.background = '#d4edda';
-        
-        // Show frontend URL from backend (SSOT)
-        if (data.frontend_url && data.frontend_url !== 'not configured') {
-          statusElement.innerText += ` | Frontend (SSOT): ${data.frontend_url}`;
-        }
-        
         // Show CORS origins for debugging
         if (data.cors_origins && Array.isArray(data.cors_origins)) {
           console.log("✅ CORS Origins (from SSOT):", data.cors_origins);
         }
       } catch (err) {
         console.error("❌ Backend connection failed:", err);
-        statusElement.innerText = `Backend Error ❌ - ${err.message}`;
-        statusElement.style.color = '#c0392b';
-        statusElement.style.background = '#f8d7da';
       }
     }
 
