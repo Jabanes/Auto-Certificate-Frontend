@@ -21,7 +21,7 @@ const DEV_API_BASE_URL = 'http://localhost:8000';
 // Production: HTTPS backend URL (update with your production backend)
 // IMPORTANT: Must use HTTPS for production (mixed content security)
 const PROD_API_BASE_URL =
-  "https://auto-certificates.ozerli.co.il";
+  "https://auto-certificates.solutionsmcs.com";
 
 
 // Select API URL based on environment
